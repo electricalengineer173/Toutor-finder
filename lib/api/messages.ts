@@ -125,14 +125,15 @@ export const getSentMessages = async (): Promise<Message[]> => {
 /**
  * Get conversation with a specific user
  */
-export const getConversation = async (userType: 'student' | 'teacher', userId: number): Promise<Message[]> => {
+export const getConversation = async (userType: 'student' | 'teacher', userId: number, isActualId: boolean = false): Promise<Message[]> => {
   // Log the request details
   console.log('API Request Details (Get Conversation):', {
     endpoint: `/api/messages/messages/conversation/${userType}/${userId}`,
     method: 'GET',
     params: {
       userType,
-      userId
+      userId,
+      isActualId
     }
   });
 

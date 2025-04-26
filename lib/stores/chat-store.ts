@@ -112,28 +112,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Determine recipient type based on user role
       const recipientType = user.role === 'student' ? 'teacher' : 'student';
 
-      // Convert between IDs if necessary
-      let actualRecipientId = recipientId;
+      console.log(`Sending message to ${recipientType} ID: ${recipientId}`);
 
-      if (recipientType === 'teacher') {
-        // If sending to a teacher, we need the user ID
-        const userId = await userMapping.getUserIdFromTeacherId(recipientId);
-        if (userId) actualRecipientId = userId;
-      } else if (recipientType === 'student') {
-        // If sending to a student, we need the user ID
-        const userId = await userMapping.getUserIdFromStudentId(recipientId);
-        if (userId) actualRecipientId = userId;
+      // For teachers sending to students, we need to use the student ID directly
+      // For students sending to teachers, we need to use the teacher ID directly
+      // The backend expects the actual student/teacher ID, not the user ID
+
+      // We'll pass the ID as is, since the backend expects the actual student/teacher ID
+      // But we'll log what's happening for debugging
+      if (user.role === 'teacher' && recipientType === 'student') {
+        console.log(`Teacher sending message to student ID: ${recipientId}`);
+        // No conversion needed - using student ID directly
+      } else if (user.role === 'student' && recipientType === 'teacher') {
+        console.log(`Student sending message to teacher ID: ${recipientId}`);
+        // No conversion needed - using teacher ID directly
       }
 
       // Log what we're sending to the backend
       console.log('Sending message to backend:', {
         content,
-        recipientId: actualRecipientId,
-        recipientType,
-        originalRecipientId: recipientId
+        recipientId,
+        recipientType
       });
 
-      const message = await messagesApi.sendMessage(content, actualRecipientId, recipientType);
+      const message = await messagesApi.sendMessage(content, recipientId, recipientType);
 
       // Log the response from the backend
       console.log('Response from backend:', message);
@@ -168,20 +170,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Determine user type for the conversation partner
       const userType = user.role === 'student' ? 'teacher' : 'student';
 
-      // Convert between IDs if necessary
-      let actualUserId = userId;
+      console.log(`Getting conversation with ${userType} ID: ${userId}`);
 
-      if (userType === 'teacher') {
-        // If getting conversation with a teacher, we need the user ID
-        const teacherUserId = await userMapping.getUserIdFromTeacherId(userId);
-        if (teacherUserId) actualUserId = teacherUserId;
-      } else if (userType === 'student') {
-        // If getting conversation with a student, we need the user ID
-        const studentUserId = await userMapping.getUserIdFromStudentId(userId);
-        if (studentUserId) actualUserId = studentUserId;
+      // For teachers viewing student conversations, we need to use the student ID directly
+      // For students viewing teacher conversations, we need to use the teacher ID directly
+      // The backend expects the actual student/teacher ID, not the user ID
+
+      // We'll pass the ID as is, since the backend expects the actual student/teacher ID
+      // But we'll log what's happening for debugging
+      if (user.role === 'teacher' && userType === 'student') {
+        console.log(`Teacher viewing conversation with student ID: ${userId}`);
+        // No conversion needed - using student ID directly
+      } else if (user.role === 'student' && userType === 'teacher') {
+        console.log(`Student viewing conversation with teacher ID: ${userId}`);
+        // No conversion needed - using teacher ID directly
       }
 
-      const messages = await messagesApi.getConversation(userType, actualUserId);
+      // Call the API with the ID as is - the backend expects the actual student/teacher ID
+      const messages = await messagesApi.getConversation(userType, userId, true);
 
       // Update local state
       const { conversations } = get();
