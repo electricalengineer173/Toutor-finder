@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { HeroSection } from "@/components/hero-section"
-import { FeaturedTutors } from "@/components/featured-tutors"
+import { FeaturedTeachers } from "@/components/featured-teachers"
 import { SubjectCategories } from "@/components/subject-categories"
 import { HowItWorks } from "@/components/how-it-works"
 import { Testimonials } from "@/components/testimonials"
@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <div className="flex flex-col gap-16 pb-8">
       <HeroSection />
-      <FeaturedTutors />
+      <FeaturedTeachers />
       <SubjectCategories />
       <HowItWorks />
       <Testimonials />

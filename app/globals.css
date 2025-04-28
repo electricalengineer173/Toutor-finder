@@ -117,7 +117,7 @@
 }
 
 .luxury-button {
-  @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-all duration-300;
+  @apply bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md hover:shadow-lg rounded-md transition-all duration-300 transform hover:-translate-y-0.5;
 }
 
 .luxury-button-secondary {
@@ -125,7 +125,7 @@
 }
 
 .luxury-button-outline {
-  @apply border border-primary text-primary hover:bg-primary/5 rounded-md transition-all duration-300;
+  @apply border-2 border-primary/20 text-primary shadow-sm hover:shadow-md rounded-md transition-all duration-300 transform hover:-translate-y-0.5 hover:border-primary/40;
 }
 
 .luxury-badge {
@@ -170,4 +170,33 @@
 
 .white-bg {
   @apply bg-secondary text-secondary-foreground;
+}
+
+/* Tutor profile page styling */
+.tutor-profile-hero {
+  background: linear-gradient(135deg, hsl(var(--primary)/0.1) 0%, hsl(var(--secondary)/0.1) 100%);
+}
+
+.tutor-profile-card {
+  @apply border-primary/10 shadow-md hover:shadow-lg transition-all duration-300;
+}
+
+.tutor-profile-badge {
+  @apply bg-primary/5 text-primary border-primary/20 px-3 py-1 rounded-full;
+}
+
+.tutor-profile-tab {
+  @apply text-sm md:text-base font-medium;
+}
+
+.tutor-profile-section-title {
+  @apply text-2xl font-bold text-primary mb-4;
+}
+
+.tutor-profile-rating-star {
+  @apply h-4 w-4 fill-yellow-400 text-yellow-400;
+}
+
+.tutor-profile-rating-star-empty {
+  @apply h-4 w-4 text-gray-300;
 }

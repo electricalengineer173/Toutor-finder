@@ -25,24 +25,44 @@ export interface TeacherProfile {
   short_description?: string;
   long_description?: string;
   years_of_experience?: number;
-  education?: string;
-  certifications?: string;
+  education?: string | Education[];
+  certifications?: string | Certification[];
   teaching_philosophy?: string;
   achievements?: string;
   average_rating?: number;
   total_reviews?: number;
   subjects?: Subject[];
   reviews?: Review[];
+  teaching_experience?: string[];
+  availability?: string[];
+}
+
+export interface Education {
+  institution: string;
+  degree: string;
+  field: string;
+  year: string;
+}
+
+export interface Certification {
+  name: string;
+  issuer: string;
+  year: string;
 }
 
 export interface TeacherUpdateData {
+  profile_picture?: string;
+  bio?: string;
   short_description?: string;
   long_description?: string;
   years_of_experience?: number;
-  education?: string;
-  certifications?: string;
+  teaching_experience?: string[];
+  education?: Education[];
+  certifications?: Certification[];
   teaching_philosophy?: string;
   achievements?: string;
+  subjects?: { name: string; description: string; hourly_rate: number }[];
+  availability?: string[];
 }
 
 export interface SubjectData {
@@ -67,9 +87,26 @@ export const getCurrentTeacherProfile = async (): Promise<TeacherProfile> => {
  * Update teacher profile
  */
 export const updateTeacherProfile = async (
-  data: TeacherUpdateData
+  data: TeacherUpdateData,
+  profilePicture?: File | null
 ): Promise<TeacherProfile> => {
-  const response = await api.patch<TeacherProfile>('/api/teachers/teachers/profile', data);
+  // Create a copy of the data to modify
+  const profileData = { ...data };
+
+  // If a profile picture is provided, upload it first
+  if (profilePicture) {
+    try {
+      const pictureResponse = await uploadTeacherProfilePicture(profilePicture);
+      // Add the profile picture URL to the data
+      profileData.profile_picture = pictureResponse.url;
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      // Continue even if profile picture upload fails
+    }
+  }
+
+  // Update the profile data with the correct endpoint
+  const response = await api.patch<TeacherProfile>('/api/teachers/teachers/profile', profileData);
   return response.data;
 };
 
@@ -83,7 +120,7 @@ export const uploadTeacherProfilePicture = async (
   formData.append('file', file);
 
   const response = await api.post<{ filename: string; content_type: string; url: string }>(
-    '/api/teachers/me/profile-picture',
+    '/api/teachers/teachers/me/profile-picture',
     formData,
     {
       headers: {
@@ -98,7 +135,7 @@ export const uploadTeacherProfilePicture = async (
  * Add a subject
  */
 export const addSubject = async (data: SubjectData): Promise<Subject> => {
-  const response = await api.post<Subject>('/api/teachers/me/subjects', data);
+  const response = await api.post<Subject>('/api/teachers/teachers/me/subjects', data);
   return response.data;
 };
 

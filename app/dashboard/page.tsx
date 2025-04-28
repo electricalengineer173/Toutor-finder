@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UpcomingLessons } from "@/components/upcoming-lessons"
@@ -8,9 +10,42 @@ import { FavoriteTutors } from "@/components/favorite-tutors"
 import { DashboardChatPreview } from "@/components/dashboard-chat-preview"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user)
+  const router = useRouter()
+  const { toast } = useToast()
+
+  // Check if teacher has completed their profile
+  useEffect(() => {
+    const checkTeacherProfile = async () => {
+      if (user?.role === "teacher") {
+        try {
+          // Check if teacher has completed their profile
+          const teacherProfile = await import('@/lib/api/teachers').then(module => module.getCurrentTeacherProfile())
+
+          // If the teacher has no subjects or no teaching philosophy, they need to complete onboarding
+          if (!teacherProfile.subjects || teacherProfile.subjects.length === 0 ||
+              !teacherProfile.teaching_philosophy) {
+            toast({
+              title: "Complete Your Profile",
+              description: "Please complete your teacher profile to start tutoring.",
+            })
+            router.push("/teacher-onboarding")
+          }
+        } catch (error) {
+          console.error('Error checking teacher profile:', error)
+          // If there's an error fetching the profile, redirect to onboarding
+          router.push("/teacher-onboarding")
+        }
+      }
+    }
+
+    if (user) {
+      checkTeacherProfile()
+    }
+  }, [user, router, toast])
 
   return (
     <AuthGuard>

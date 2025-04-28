@@ -147,7 +147,15 @@ export function TutorList() {
                   <p className="text-sm mb-4 line-clamp-2">{tutor.long_description || tutor.short_description || "No description available"}</p>
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
                     <span>{tutor.years_of_experience || 0} years experience</span>
-                    <span>{tutor.education || "Education not specified"}</span>
+                    <span>
+                      {Array.isArray(tutor.education)
+                        ? tutor.education.length > 0
+                          ? `${tutor.education[0].degree} in ${tutor.education[0].field}`
+                          : "Education not specified"
+                        : typeof tutor.education === 'string'
+                          ? tutor.education
+                          : "Education not specified"}
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button asChild>

@@ -63,7 +63,14 @@ export default function SignupPage() {
         description: "Welcome to TutorMatch!",
       })
 
-      router.push("/dashboard")
+      // Redirect based on role
+      if (values.role === "teacher") {
+        // Redirect teachers to the onboarding flow
+        router.push("/teacher-onboarding")
+      } else {
+        // Redirect students to the dashboard
+        router.push("/dashboard")
+      }
     } catch (error) {
       console.error('Registration error:', error)
       toast({

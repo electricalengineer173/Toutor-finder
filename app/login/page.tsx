@@ -39,12 +39,36 @@ export default function LoginPage() {
       // Call the login function from the auth store
       await login(values.username, values.password)
 
+      // Get the user after login
+      const user = useAuthStore.getState().user
+
       toast({
         title: "Login successful",
         description: "Welcome back to TutorMatch!",
       })
 
-      router.push("/dashboard")
+      // Redirect based on role and profile completion
+      if (user?.role === "teacher") {
+        try {
+          // Check if teacher has completed their profile
+          const teacherProfile = await import('@/lib/api/teachers').then(module => module.getCurrentTeacherProfile())
+
+          // If the teacher has no subjects or no teaching philosophy, they need to complete onboarding
+          if (!teacherProfile.subjects || teacherProfile.subjects.length === 0 ||
+              !teacherProfile.teaching_philosophy) {
+            router.push("/teacher-onboarding")
+          } else {
+            router.push("/dashboard")
+          }
+        } catch (error) {
+          // If there's an error fetching the profile or it doesn't exist, redirect to onboarding
+          console.error('Error checking teacher profile:', error)
+          router.push("/teacher-onboarding")
+        }
+      } else {
+        // Redirect students to the dashboard
+        router.push("/dashboard")
+      }
     } catch (error) {
       console.error('Login error:', error)
       toast({
