@@ -10,11 +10,21 @@ import { StarRating } from "@/components/star-rating"
 import { Heart, Loader2 } from "lucide-react"
 import { getTutors } from "@/lib/data" // Keep for fallback
 import * as teachersApi from "@/lib/api/teachers"
+import * as usersApi from "@/lib/api/users"
 import { TeacherProfile } from "@/lib/api/teachers"
+import { User } from "@/lib/api/users"
 
-export function TutorList() {
+interface TutorListProps {
+  searchFilters?: {
+    name?: string;
+    subject?: string;
+  };
+}
+
+export function TutorList({ searchFilters = {} }: TutorListProps) {
   const [sortBy, setSortBy] = useState("recommended")
   const [tutors, setTutors] = useState<TeacherProfile[]>([])
+  const [userMap, setUserMap] = useState<Record<number, User>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
@@ -31,6 +41,7 @@ export function TutorList() {
           skip: 0
         }
 
+        // Add sort parameters
         if (sortBy === "rating-high") {
           params.sort_by = "rating"
           params.sort_order = "desc"
@@ -45,14 +56,50 @@ export function TutorList() {
           params.sort_order = "desc"
         }
 
+        // Add search filters if they exist
+        if (searchFilters.name && searchFilters.name.trim() !== '') {
+          params.name = searchFilters.name.trim();
+        }
+
+        if (searchFilters.subject && searchFilters.subject.trim() !== '') {
+          params.subject = searchFilters.subject.trim();
+        }
+
+        console.log("Fetching tutors with params:", params);
+
         // Fetch teachers from API
         const [teachersResponse, countResponse] = await Promise.all([
           teachersApi.getAllTeachers(params),
-          teachersApi.getTeacherCount()
+          teachersApi.getTeacherCount(params) // Pass the same params to get accurate count
         ])
 
+        // Store the teacher response
         setTutors(teachersResponse)
         setTotalCount(countResponse.total)
+
+        // Fetch user information for teachers that don't have a username
+        try {
+          // Get all unique user IDs from teachers
+          const userIds = teachersResponse
+            .filter(teacher => !teacher.username && teacher.user_id)
+            .map(teacher => teacher.user_id);
+
+          if (userIds.length > 0) {
+            // Fetch all users
+            const users = await usersApi.getUsers();
+
+            // Create a map of user_id to user
+            const userMapData: Record<number, User> = {};
+            users.forEach(user => {
+              userMapData[user.id] = user;
+            });
+
+            setUserMap(userMapData);
+          }
+        } catch (userErr) {
+          console.error("Error fetching user information:", userErr);
+          // Continue even if user fetch fails
+        }
       } catch (err) {
         console.error("Error fetching tutors:", err)
         setError("Failed to load tutors. Using mock data instead.")
@@ -64,14 +111,33 @@ export function TutorList() {
     }
 
     fetchTutors()
-  }, [sortBy])
+  }, [sortBy, searchFilters.name, searchFilters.subject])
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <p className="text-muted-foreground">
-          {isLoading ? "Loading tutors..." : `Showing ${tutors.length} of ${totalCount} tutors`}
-        </p>
+        <div>
+          <p className="text-muted-foreground">
+            {isLoading ? "Loading tutors..." : `Showing ${tutors.length} of ${totalCount} tutors`}
+          </p>
+
+          {/* Show active filters */}
+          {(searchFilters.name || searchFilters.subject) && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {searchFilters.name && (
+                <Badge variant="outline" className="bg-primary/5 text-primary px-2 py-1">
+                  Name: {searchFilters.name}
+                </Badge>
+              )}
+              {searchFilters.subject && (
+                <Badge variant="outline" className="bg-primary/5 text-primary px-2 py-1">
+                  Subject: {searchFilters.subject}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+
         <Select value={sortBy} onValueChange={setSortBy} disabled={isLoading}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Sort by" />
@@ -95,6 +161,24 @@ export function TutorList() {
           <p className="text-destructive mb-4">{error}</p>
           <Button onClick={() => window.location.reload()}>Try Again</Button>
         </div>
+      ) : tutors.length === 0 ? (
+        <div className="text-center py-12 bg-primary/5 rounded-lg border border-primary/10">
+          <p className="text-lg font-medium text-primary mb-2">No tutors found</p>
+          <p className="text-muted-foreground mb-6">
+            {searchFilters.name || searchFilters.subject ?
+              "Try adjusting your search filters to find more tutors." :
+              "There are no tutors available at the moment."}
+          </p>
+          {(searchFilters.name || searchFilters.subject) && (
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = '/tutors'}
+              className="luxury-button-outline"
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="space-y-4">
           {tutors.map((tutor) => (
@@ -104,7 +188,9 @@ export function TutorList() {
                 <div className="relative w-full md:w-48 h-48 md:h-auto bg-muted shrink-0">
                   <img
                     src={tutor.profile_picture || "/placeholder.svg"}
-                    alt={`Tutor ${tutor.id}`}
+                    alt={tutor.username ||
+                         (tutor.user_id && userMap[tutor.user_id]?.username) ||
+                         `Teacher ${tutor.id}`}
                     className="object-cover w-full h-full"
                   />
                   <Button
@@ -119,8 +205,10 @@ export function TutorList() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold">
-                        {/* Use username or ID if name not available */}
-                        {tutor.user_id}
+                        {/* Display real username with fallbacks */}
+                        {tutor.username ||
+                         (tutor.user_id && userMap[tutor.user_id]?.username) ||
+                         `Teacher ${tutor.id}`}
                       </h3>
                       <div className="flex items-center">
                         <StarRating rating={tutor.average_rating || 0} />
@@ -172,7 +260,7 @@ export function TutorList() {
 
       )}
 
-      {!isLoading && !error && tutors.length > 0 && (
+      {!isLoading && !error && tutors.length > 0 && tutors.length < totalCount && (
         <div className="flex justify-center">
           <Button variant="outline">Load More Tutors</Button>
         </div>

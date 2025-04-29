@@ -16,11 +16,13 @@ export interface Review {
   comment: string;
   created_at: string;
   updated_at: string | null;
+  student_name?: string;  // Added student_name field
 }
 
 export interface TeacherProfile {
   id: number;
   user_id: number;
+  username?: string;  // Added username field
   profile_picture?: string;
   short_description?: string;
   long_description?: string;

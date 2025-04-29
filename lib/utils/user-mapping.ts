@@ -1,11 +1,17 @@
 import * as studentsApi from '@/lib/api/students';
 import * as teachersApi from '@/lib/api/teachers';
+import * as usersApi from '@/lib/api/users';
 
 // Cache for user ID to student/teacher ID mappings
 const userToStudentMap = new Map<number, number>();
 const userToTeacherMap = new Map<number, number>();
 const studentToUserMap = new Map<number, number>();
 const teacherToUserMap = new Map<number, number>();
+
+// Cache for storing complete user information
+const userInfoCache = new Map<number, usersApi.User>();
+const teacherInfoCache = new Map<number, teachersApi.TeacherProfile>();
+const studentInfoCache = new Map<number, studentsApi.StudentProfile>();
 
 /**
  * Initialize the user mapping cache
@@ -14,15 +20,17 @@ export const initializeUserMappings = async (): Promise<void> => {
   try {
     console.log('Initializing user mappings...');
 
-    // Fetch all students and teachers
-    const [students, teachers] = await Promise.all([
+    // Fetch all students, teachers, and users
+    const [students, teachers, users] = await Promise.all([
       studentsApi.getAllStudents({ skip: 0, limit: 100 }),
-      teachersApi.getAllTeachers({ skip: 0, limit: 100 })
+      teachersApi.getAllTeachers({ skip: 0, limit: 100 }),
+      usersApi.getUsers()
     ]);
 
     console.log('Fetched data:', {
       students: students.map(s => ({ id: s.id, user_id: s.user_id })),
-      teachers: teachers.map(t => ({ id: t.id, user_id: t.user_id }))
+      teachers: teachers.map(t => ({ id: t.id, user_id: t.user_id })),
+      users: users.map(u => ({ id: u.id, username: u.username }))
     });
 
     // Clear existing maps
@@ -30,27 +38,40 @@ export const initializeUserMappings = async (): Promise<void> => {
     userToTeacherMap.clear();
     studentToUserMap.clear();
     teacherToUserMap.clear();
+    userInfoCache.clear();
+    teacherInfoCache.clear();
+    studentInfoCache.clear();
 
-    // Map students
+    // Cache all users
+    users.forEach(user => {
+      userInfoCache.set(user.id, user);
+    });
+
+    // Map and cache students
     students.forEach(student => {
       userToStudentMap.set(student.user_id, student.id);
       studentToUserMap.set(student.id, student.user_id);
+      studentInfoCache.set(student.id, student);
     });
 
-    // Map teachers
+    // Map and cache teachers
     teachers.forEach(teacher => {
       userToTeacherMap.set(teacher.user_id, teacher.id);
       teacherToUserMap.set(teacher.id, teacher.user_id);
+      teacherInfoCache.set(teacher.id, teacher);
     });
 
     console.log('Mapping complete. Current maps:', {
       userToStudent: Array.from(userToStudentMap.entries()),
       userToTeacher: Array.from(userToTeacherMap.entries()),
       studentToUser: Array.from(studentToUserMap.entries()),
-      teacherToUser: Array.from(teacherToUserMap.entries())
+      teacherToUser: Array.from(teacherToUserMap.entries()),
+      userInfoCacheSize: userInfoCache.size,
+      teacherInfoCacheSize: teacherInfoCache.size,
+      studentInfoCacheSize: studentInfoCache.size
     });
 
-    console.log(`Successfully mapped ${students.length} students and ${teachers.length} teachers`);
+    console.log(`Successfully mapped ${students.length} students and ${teachers.length} teachers and ${users.length} users`);
   } catch (error) {
     console.error('Error initializing user mappings:', error);
   }
@@ -184,6 +205,7 @@ export const getUserIdFromTeacherId = async (teacherId: number): Promise<number 
     if (teacher) {
       userToTeacherMap.set(teacher.user_id, teacher.id);
       teacherToUserMap.set(teacher.id, teacher.user_id);
+      teacherInfoCache.set(teacher.id, teacher);
       console.log(`Mapped: Teacher ID ${teacher.id} <-> User ID ${teacher.user_id}`);
       return teacher.user_id;
     }
@@ -192,6 +214,83 @@ export const getUserIdFromTeacherId = async (teacherId: number): Promise<number 
     return null;
   } catch (error) {
     console.error('Error getting user ID from teacher ID:', error);
+    return null;
+  }
+};
+
+/**
+ * Store user information for a specific user
+ */
+export const storeUserInfo = (user: usersApi.User): void => {
+  userInfoCache.set(user.id, user);
+  console.log(`Stored user info for user ID: ${user.id}, username: ${user.username}`);
+};
+
+/**
+ * Get user information by user ID
+ */
+export const getUserInfo = async (userId: number): Promise<usersApi.User | null> => {
+  // Check cache first
+  if (userInfoCache.has(userId)) {
+    return userInfoCache.get(userId) || null;
+  }
+
+  // If not in cache, try to fetch from API
+  try {
+    const user = await usersApi.getUserById(userId);
+    if (user) {
+      userInfoCache.set(userId, user);
+      return user;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user info:', error);
+    return null;
+  }
+};
+
+/**
+ * Get teacher information by teacher ID
+ */
+export const getTeacherInfo = async (teacherId: number): Promise<teachersApi.TeacherProfile | null> => {
+  // Check cache first
+  if (teacherInfoCache.has(teacherId)) {
+    return teacherInfoCache.get(teacherId) || null;
+  }
+
+  // If not in cache, try to fetch from API
+  try {
+    const teacher = await teachersApi.getTeacherById(teacherId);
+    if (teacher) {
+      teacherInfoCache.set(teacherId, teacher);
+      return teacher;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting teacher info:', error);
+    return null;
+  }
+};
+
+/**
+ * Get student information by student ID
+ */
+export const getStudentInfo = async (studentId: number): Promise<studentsApi.StudentProfile | null> => {
+  // Check cache first
+  if (studentInfoCache.has(studentId)) {
+    return studentInfoCache.get(studentId) || null;
+  }
+
+  // If not in cache, try to fetch from API
+  try {
+    const student = await studentsApi.getStudentById(studentId);
+    if (student) {
+      studentInfoCache.set(studentId, student);
+      return student;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting student info:', error);
     return null;
   }
 };

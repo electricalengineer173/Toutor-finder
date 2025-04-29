@@ -9,9 +9,15 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Search, X } from "lucide-react"
 
-export function TutorFilters() {
+interface TutorFiltersProps {
+  onSearch: (filters: { name?: string; subject?: string }) => void;
+}
+
+export function TutorFilters({ onSearch }: TutorFiltersProps) {
   const [priceRange, setPriceRange] = useState([20, 100])
   const [searchTerm, setSearchTerm] = useState("")
+  const [searchType, setSearchType] = useState<"name" | "subject">("name")
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
 
   const subjects = [
     { id: "math", label: "Mathematics" },
@@ -31,9 +37,29 @@ export function TutorFilters() {
     { id: "mornings", label: "Mornings" },
   ]
 
+  const handleSearch = () => {
+    if (searchType === "name") {
+      onSearch({ name: searchTerm, subject: undefined });
+    } else {
+      onSearch({ name: undefined, subject: searchTerm });
+    }
+  }
+
+  const handleSubjectClick = (subjectId: string) => {
+    const subject = subjects.find(s => s.id === subjectId);
+    if (subject) {
+      setSearchType("subject");
+      setSearchTerm(subject.label);
+      setSelectedSubject(subjectId);
+      onSearch({ name: undefined, subject: subject.label });
+    }
+  }
+
   const resetFilters = () => {
     setPriceRange([20, 100])
     setSearchTerm("")
+    setSelectedSubject(null)
+    onSearch({});
   }
 
   return (
@@ -47,15 +73,52 @@ export function TutorFilters() {
       </div>
 
       <div className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search tutors..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+            <Label htmlFor="search-type" className="text-sm">Search by:</Label>
+            <div className="flex rounded-md overflow-hidden border">
+              <Button
+                type="button"
+                variant={searchType === "name" ? "default" : "ghost"}
+                className={`rounded-none h-8 px-3 text-xs ${searchType === "name" ? "bg-primary text-primary-foreground" : "hover:bg-primary/10"}`}
+                onClick={() => setSearchType("name")}
+              >
+                Name
+              </Button>
+              <Button
+                type="button"
+                variant={searchType === "subject" ? "default" : "ghost"}
+                className={`rounded-none h-8 px-3 text-xs ${searchType === "subject" ? "bg-primary text-primary-foreground" : "hover:bg-primary/10"}`}
+                onClick={() => setSearchType("subject")}
+              >
+                Subject
+              </Button>
+            </div>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder={searchType === "name" ? "Search tutors by name..." : "Search tutors by subject..."}
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              className="absolute right-1 top-1 h-7 px-2"
+              onClick={handleSearch}
+            >
+              Search
+            </Button>
+          </div>
         </div>
 
         <Accordion type="multiple" defaultValue={["subjects", "price", "availability"]}>
@@ -64,9 +127,24 @@ export function TutorFilters() {
             <AccordionContent>
               <div className="space-y-2">
                 {subjects.map((subject) => (
-                  <div key={subject.id} className="flex items-center space-x-2">
-                    <Checkbox id={`subject-${subject.id}`} />
-                    <Label htmlFor={`subject-${subject.id}`} className="text-sm font-normal">
+                  <div
+                    key={subject.id}
+                    className={`flex items-center space-x-2 p-1.5 rounded-md cursor-pointer transition-colors ${
+                      selectedSubject === subject.id ? 'bg-primary/10' : 'hover:bg-primary/5'
+                    }`}
+                    onClick={() => handleSubjectClick(subject.id)}
+                  >
+                    <Checkbox
+                      id={`subject-${subject.id}`}
+                      checked={selectedSubject === subject.id}
+                      onCheckedChange={() => handleSubjectClick(subject.id)}
+                    />
+                    <Label
+                      htmlFor={`subject-${subject.id}`}
+                      className={`text-sm font-normal cursor-pointer ${
+                        selectedSubject === subject.id ? 'text-primary font-medium' : ''
+                      }`}
+                    >
                       {subject.label}
                     </Label>
                   </div>
@@ -121,7 +199,9 @@ export function TutorFilters() {
           </AccordionItem>
         </Accordion>
 
-        <Button className="w-full">Apply Filters</Button>
+        <Button className="w-full luxury-button" onClick={handleSearch}>
+          Apply Filters
+        </Button>
       </div>
     </div>
   )

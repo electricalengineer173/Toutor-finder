@@ -6,14 +6,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import * as usersApi from '@/lib/api/users'
+import * as userMapping from '@/lib/utils/user-mapping'
+import { toast } from "sonner"
 
 export default function NewChatPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [users, setUsers] = useState<usersApi.User[]>([])
   const [loading, setLoading] = useState(true)
+  const [processingUser, setProcessingUser] = useState<number | null>(null)
   const router = useRouter()
   const user = useAuthStore(state => state.user)
 
@@ -23,9 +26,9 @@ export default function NewChatPage() {
         setLoading(true);
         const allUsers = await usersApi.getUsers();
         // Filter users based on role - if current user is student, show teachers and vice versa
-        const filteredUsers = allUsers.filter(u => 
-          u.is_active && u.id !== user?.id && 
-          ((user?.role === 'student' && u.role === 'teacher') || 
+        const filteredUsers = allUsers.filter(u =>
+          u.is_active && u.id !== user?.id &&
+          ((user?.role === 'student' && u.role === 'teacher') ||
            (user?.role === 'teacher' && u.role === 'student'))
         );
         setUsers(filteredUsers);
@@ -41,8 +44,72 @@ export default function NewChatPage() {
     }
   }, [user]);
 
+  // Function to handle starting a chat with a user
+  const handleStartChat = async (selectedUser: usersApi.User) => {
+    try {
+      setProcessingUser(selectedUser.id);
+
+      // Initialize user mappings
+      await userMapping.initializeUserMappings();
+
+      // Store the selected user information in the cache
+      userMapping.storeUserInfo(selectedUser);
+      console.log(`Stored selected user in cache: ${selectedUser.username} (ID: ${selectedUser.id})`);
+
+      let chatId: number | null = selectedUser.id;
+
+      // Map user ID to the appropriate teacher/student ID based on roles
+      if (user?.role === 'student' && selectedUser.role === 'teacher') {
+        // If current user is a student and selected user is a teacher, get teacher ID
+        const teacherId = await userMapping.getTeacherIdFromUserId(selectedUser.id);
+        if (teacherId) {
+          chatId = teacherId;
+
+          // Store the mapping in localStorage for persistence
+          localStorage.setItem(`chat_teacher_${teacherId}`, JSON.stringify({
+            userId: selectedUser.id,
+            username: selectedUser.username,
+            email: selectedUser.email
+          }));
+
+          console.log(`Stored teacher mapping in localStorage: Teacher ID ${teacherId} -> User ${selectedUser.username}`);
+        } else {
+          toast.error("Could not find teacher profile for this user");
+          setProcessingUser(null);
+          return;
+        }
+      } else if (user?.role === 'teacher' && selectedUser.role === 'student') {
+        // If current user is a teacher and selected user is a student, get student ID
+        const studentId = await userMapping.getStudentIdFromUserId(selectedUser.id);
+        if (studentId) {
+          chatId = studentId;
+
+          // Store the mapping in localStorage for persistence
+          localStorage.setItem(`chat_student_${studentId}`, JSON.stringify({
+            userId: selectedUser.id,
+            username: selectedUser.username,
+            email: selectedUser.email
+          }));
+
+          console.log(`Stored student mapping in localStorage: Student ID ${studentId} -> User ${selectedUser.username}`);
+        } else {
+          toast.error("Could not find student profile for this user");
+          setProcessingUser(null);
+          return;
+        }
+      }
+
+      // Navigate to the chat page with the correct ID
+      router.push(`/chat/${chatId}`);
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      toast.error("Failed to start chat. Please try again.");
+      setProcessingUser(null);
+    }
+  };
+
   // Filter users based on search term
-  const filteredUsers = users.filter(u => 
+  const filteredUsers = users.filter(u =>
     u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -80,8 +147,12 @@ export default function NewChatPage() {
                     key={u.id}
                     variant="ghost"
                     className="w-full justify-start p-3 h-auto"
-                    onClick={() => router.push(`/chat/${u.id}`)}
+                    onClick={() => handleStartChat(u)}
+                    disabled={processingUser === u.id}
                   >
+                    {processingUser === u.id && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback>{u.username[0].toUpperCase()}</AvatarFallback>
@@ -95,8 +166,8 @@ export default function NewChatPage() {
                 ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  {searchTerm 
-                    ? "No users match your search" 
+                  {searchTerm
+                    ? "No users match your search"
                     : `No ${user.role === 'student' ? 'teachers' : 'students'} available`}
                 </div>
               )}

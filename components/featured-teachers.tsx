@@ -18,26 +18,24 @@ export function FeaturedTeachers() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchFeaturedTeachers = async () => {
+    const fetchTeachers = async () => {
       setIsLoading(true)
       setError(null)
 
       try {
-        // Fetch teachers with high ratings, limit to 10 to ensure we get enough
+        // Fetch up to 10 teachers to ensure we get enough
         const params = {
           limit: 10,
           sort_by: "rating",
-          sort_order: "desc",
-          min_rating: 0 // Remove minimum rating to get more results
+          sort_order: "desc"
         }
 
-        const teachersResponse = await teachersApi.getAllTeachers(params)
-        console.log("API Response - Number of teachers:", teachersResponse.length)
-        console.log("Teachers data:", teachersResponse)
+        const response = await teachersApi.getAllTeachers(params)
+        console.log("API Response - Number of teachers:", response.length)
 
-        if (teachersResponse.length >= 5) {
+        if (response.length >= 5) {
           // If we have at least 5 teachers from the API, use them
-          setTeachers(teachersResponse.slice(0, 5))
+          setTeachers(response.slice(0, 5))
         } else {
           // If we don't have enough teachers from the API, supplement with mock data
           console.log("Not enough teachers from API, adding mock data")
@@ -61,18 +59,38 @@ export function FeaturedTeachers() {
           }))
 
           // Combine API teachers with mock teachers to get at least 5
-          const combinedTeachers = [...teachersResponse, ...mockTeachers]
-          setTeachers(combinedTeachers.slice(0, 5))
+          const combined = [...response, ...mockTeachers]
+          setTeachers(combined.slice(0, 5))
         }
       } catch (err) {
-        console.error("Error fetching featured teachers:", err)
-        setError("Failed to load featured teachers.")
+        console.error("Error fetching teachers:", err)
+        setError("Failed to load teachers. Using mock data instead.")
+
+        // Fallback to mock data
+        const mockTutors = getTutors()
+        const mockTeachers = mockTutors.map((tutor, index) => ({
+          id: index + 1000,
+          user_id: parseInt(tutor.id.replace('tutor-', '')),
+          profile_picture: tutor.avatar,
+          short_description: tutor.shortBio,
+          average_rating: tutor.rating,
+          total_reviews: tutor.reviewCount,
+          subjects: tutor.subjects.map((subject, idx) => ({
+            id: idx,
+            teacher_id: index + 1000,
+            name: subject,
+            description: `${subject} lessons`,
+            hourly_rate: tutor.hourlyRate
+          }))
+        }))
+
+        setTeachers(mockTeachers.slice(0, 5))
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchFeaturedTeachers()
+    fetchTeachers()
   }, [])
 
   if (isLoading) {
@@ -115,59 +133,59 @@ export function FeaturedTeachers() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {teachers.map((teacher) => (
-        <Card key={teacher.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-          <CardContent className="p-0">
-            <div className="p-6">
-              <div className="flex flex-col items-center text-center mb-4">
-                <Avatar className="h-20 w-20 mb-3">
-                  {teacher.profile_picture ? (
-                    <AvatarImage src={teacher.profile_picture} alt={`${teacher.user_id}'s profile`} />
-                  ) : (
-                    <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                      {teacher.user_id?.toString().substring(0, 2) || "T"}
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-                <h3 className="font-semibold text-lg">Teacher {teacher.user_id}</h3>
-                <div className="flex items-center mt-1">
-                  <StarRating rating={teacher.average_rating || 0} />
-                  <span className="text-sm text-muted-foreground ml-2">
-                    ({teacher.total_reviews || 0} reviews)
-                  </span>
+          <Card key={teacher.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <CardContent className="p-0">
+              <div className="p-6">
+                <div className="flex flex-col items-center text-center mb-4">
+                  <Avatar className="h-20 w-20 mb-3">
+                    {teacher.profile_picture ? (
+                      <AvatarImage src={teacher.profile_picture} alt={`${teacher.user_id}'s profile`} />
+                    ) : (
+                      <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                        {teacher.user_id?.toString().substring(0, 2) || "T"}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <h3 className="font-semibold text-lg">Teacher {teacher.user_id}</h3>
+                  <div className="flex items-center mt-1">
+                    <StarRating rating={teacher.average_rating || 0} />
+                    <span className="text-sm text-muted-foreground ml-2">
+                      ({teacher.total_reviews || 0} reviews)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm line-clamp-2">
+                    {teacher.short_description || "Experienced tutor ready to help you succeed."}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {teacher.subjects?.slice(0, 3).map((subject, index) => (
+                      <Badge key={index} variant="secondary" className="font-normal">
+                        {subject.name}
+                      </Badge>
+                    ))}
+                    {teacher.subjects && teacher.subjects.length > 3 && (
+                      <Badge variant="outline" className="font-normal">
+                        +{teacher.subjects.length - 3} more
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-sm line-clamp-2">
-                  {teacher.short_description || "Experienced tutor ready to help you succeed."}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {teacher.subjects?.slice(0, 3).map((subject, index) => (
-                    <Badge key={index} variant="secondary" className="font-normal">
-                      {subject.name}
-                    </Badge>
-                  ))}
-                  {teacher.subjects && teacher.subjects.length > 3 && (
-                    <Badge variant="outline" className="font-normal">
-                      +{teacher.subjects.length - 3} more
-                    </Badge>
-                  )}
-                </div>
+              <div className="border-t p-4">
+                <Link href={`/tutors/${teacher.id}`} passHref>
+                  <Button className="w-full" variant="outline">
+                    View Profile
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
               </div>
-            </div>
-
-            <div className="border-t p-4">
-              <Link href={`/tutors/${teacher.id}`} passHref>
-                <Button className="w-full" variant="outline">
-                  View Profile
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </section>
   )

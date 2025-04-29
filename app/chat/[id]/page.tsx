@@ -10,6 +10,7 @@ import { Send } from "lucide-react"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useChatStore } from "@/lib/stores/chat-store"
 import * as userMapping from '@/lib/utils/user-mapping'
+import * as usersApi from '@/lib/api/users'
 import Link from "next/link"
 
 export default function ChatPage() {
@@ -17,12 +18,38 @@ export default function ChatPage() {
   const chatId = parseInt(params.id as string)
   const [message, setMessage] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [cachedUserInfo, setCachedUserInfo] = useState<{userId: number, username: string, email: string} | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const user = useAuthStore(state => state.user)
   const { conversations, getConversation, sendMessage, markMessageAsRead } = useChatStore()
   const conversation = conversations[chatId]
 
+  // Load cached user information from localStorage
+  useEffect(() => {
+    if (!user) return;
+
+    try {
+      // Try to get cached user info from localStorage based on role and chat ID
+      const storageKey = user.role === 'student'
+        ? `chat_teacher_${chatId}`
+        : `chat_student_${chatId}`;
+
+      const storedData = localStorage.getItem(storageKey);
+
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        console.log(`Found cached user info for ${storageKey}:`, parsedData);
+        setCachedUserInfo(parsedData);
+      } else {
+        console.log(`No cached user info found for ${storageKey}`);
+      }
+    } catch (error) {
+      console.error('Error loading cached user info:', error);
+    }
+  }, [user, chatId]);
+
+  // Load conversation data
   useEffect(() => {
     const loadConversation = async () => {
       try {
@@ -81,9 +108,15 @@ export default function ChatPage() {
     );
   }
 
+  // Get user information from conversation or cached data
   const otherUser = conversation?.messages[0]?.sender_id === user.id
     ? conversation?.messages[0]?.recipient
     : conversation?.messages[0]?.sender;
+
+  // Use cached user info if available, otherwise fall back to conversation data
+  const displayName = cachedUserInfo?.username || otherUser?.username || (user.role === 'student' ? `Teacher ${chatId}` : `Student ${chatId}`);
+  const displayEmail = cachedUserInfo?.email || otherUser?.email || (user.role === 'student' ? 'Teacher' : 'Student');
+  const displayInitial = displayName[0]?.toUpperCase() || (user.role === 'student' ? `T` : `S`);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -92,15 +125,15 @@ export default function ChatPage() {
           <div className="flex items-center gap-4">
             <Avatar className="h-10 w-10">
               <AvatarFallback>
-                {otherUser?.username?.[0]?.toUpperCase() || (user.role === 'student' ? `T${chatId}` : `S${chatId}`)}
+                {displayInitial}
               </AvatarFallback>
             </Avatar>
             <div>
               <CardTitle>
-                {otherUser?.username || (user.role === 'student' ? `Tutor ${chatId}` : `Student ${chatId}`)}
+                {displayName}
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                {otherUser?.email || (user.role === 'student' ? 'Teacher' : 'Student')}
+                {displayEmail}
               </p>
             </div>
           </div>

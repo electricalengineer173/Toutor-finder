@@ -90,13 +90,38 @@ export default function ChatsPage() {
                           <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10">
                               <AvatarFallback>
-                                {user.role === 'student' ? `T${conversation.id}` : `S${conversation.id}`}
+                                {conversation.lastMessage ?
+                                  (user.role === 'student' ?
+                                    conversation.lastMessage.sender.id === user.id ?
+                                      conversation.lastMessage.recipient.username?.[0]?.toUpperCase() :
+                                      conversation.lastMessage.sender.username?.[0]?.toUpperCase()
+                                    :
+                                    conversation.lastMessage.sender.id === user.id ?
+                                      conversation.lastMessage.recipient.username?.[0]?.toUpperCase() :
+                                      conversation.lastMessage.sender.username?.[0]?.toUpperCase()
+                                  )
+                                  :
+                                  (user.role === 'student' ? `T` : `S`)
+                                }
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <h3 className="font-medium truncate">
-                                  {user.role === 'student' ? `Tutor ${conversation.id}` : `Student ${conversation.id}`}
+                                  {/* Try to get the username from the last message if available */}
+                                  {conversation.lastMessage ?
+                                    (user.role === 'student' ?
+                                      conversation.lastMessage.sender.id === user.id ?
+                                        conversation.lastMessage.recipient.username :
+                                        conversation.lastMessage.sender.username
+                                      :
+                                      conversation.lastMessage.sender.id === user.id ?
+                                        conversation.lastMessage.recipient.username :
+                                        conversation.lastMessage.sender.username
+                                    )
+                                    :
+                                    (user.role === 'student' ? `Tutor ${conversation.id}` : `Student ${conversation.id}`)
+                                  }
                                 </h3>
                                 <span className="text-xs text-muted-foreground">
                                   {lastMessage ? new Date(lastMessage.sent_at).toLocaleDateString() : "No messages"}
